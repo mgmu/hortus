@@ -96,7 +96,8 @@ AND (tablename = 'plant' OR tablename = 'plant_log')
  */
 func (e *env) plantsListHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodHead && r.Method != http.MethodGet {
+		method := r.Method
+		if method != http.MethodHead && method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -124,6 +125,9 @@ func (e *env) plantsListHandler() func(http.ResponseWriter, *http.Request) {
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-		fmt.Fprintf(w, body)
+
+		if method == http.MethodGet {
+			fmt.Fprintf(w, body)
+		}
 	}
 }
