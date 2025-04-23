@@ -11,11 +11,18 @@ import (
 )
 
 var (
-	noUrl         = "Database url is not set\n"
-	connPoolErr   = "Unable to create connection pool: %v\n"
-	queryRowErr   = "QueryRow failed: %v\n"
-	noTables      = "Tables don't exist\n"
-	searchPathErr = "Could not change search path\n"
+	noUrl                = "Database url is not set\n"
+	connPoolErr          = "Unable to create connection pool: %v\n"
+	queryRowErr          = "QueryRow failed: %v\n"
+	noTables             = "Tables don't exist\n"
+	searchPathErr        = "Could not change search path\n"
+	notAllowed           = "Method not allowed"
+	emptyName            = "Name is empty"
+	longName             = "Name is too long"
+	illegalName          = "Name contains an illegal character"
+	commonNameLimitLen   = 255
+	genericNameLimitLen  = 255
+	specificNameLimitLen = 255
 )
 
 // env type encapsulates the database connection pool, needed by the URL
@@ -76,6 +83,7 @@ AND (tablename = 'plant' OR tablename = 'plant_log')
 	// Add API handlers
 	e := env{dbpool}
 	http.HandleFunc("/plants/", e.plantsListHandler())
+	http.HandleFunc("/plants/new/", e.newPlantHandler())
 
 	// Start server
 	err = http.ListenAndServe(":8080", nil)
@@ -98,12 +106,12 @@ func (e *env) plantsListHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		method := r.Method
 		if method != http.MethodHead && method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			http.Error(w, notAllowed, http.StatusMethodNotAllowed)
 			return
 		}
 
 		// Query the db for identifiers and plant names
-		query := `SELECT id, common_name FROM plant;`
+		query := "SELECT id, common_name FROM plant;"
 		rows, _ := e.conn.Query(context.Background(), query)
 		plants, err := pgx.CollectRows(
 			rows,
@@ -129,5 +137,50 @@ func (e *env) plantsListHandler() func(http.ResponseWriter, *http.Request) {
 		if method == http.MethodGet {
 			fmt.Fprintf(w, body)
 		}
+	}
+}
+
+/*
+ * Returns a handler for the "/plants/new" URL.
+ * The request method should be POST. If it is not, sets the status code to
+ * http.StatusMethodNotAllowed and sends an error response. If an error is
+ * encountered when calling ParseForm or inserting the new plant , sends a
+ * "Bad Request" error back. Otherwise, the new plant is inserted and its
+ * identifier is sent back in the body in its textual form.
+ */
+func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, notAllowed, http.StatusMethodNotAllowed)
+			return
+		}
+		err := r.ParseForm()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Insert new plant
+		row := e.conn.QueryRow(
+			context.Background(),
+			`
+INSERT INTO plant (common_name, generic_name, specific_name)
+VALUES ($1, $2, $3)
+RETURNING id;`,
+			r.PostForm.Get("common-name"),
+			r.PostForm.Get("generic-name"),
+			r.PostForm.Get("specific-name"),
+		)
+		var id int
+		err = row.Scan(&id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Content-Length", strconv.Itoa(len(strconv.Itoa(id))))
+
+		fmt.Fprintf(w, strconv.Itoa(id))
 	}
 }

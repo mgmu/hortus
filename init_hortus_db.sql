@@ -4,14 +4,12 @@ CREATE SCHEMA hortus_schema;
 SET search_path TO hortus_schema;
 
 -- Creates tables
-DROP TABLE IF EXISTS plant CASCADE;
-DROP TABLE IF EXISTS plant_log CASCADE;
-
 CREATE TABLE hortus_schema.plant (
        id SERIAL PRIMARY KEY,
        common_name VARCHAR(255) NOT NULL,
        generic_name VARCHAR(255),
-       specific_name VARCHAR(255)
+       specific_name VARCHAR(255),
+       CHECK (common_name <> '')
 );
 
 CREATE TABLE hortus_schema.plant_log (
