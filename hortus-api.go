@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -31,11 +32,21 @@ type env struct {
 	conn *pgxpool.Pool
 }
 
-// plantShortDesc type encapsulates the short description of plant: its
-// identifier and its common name.
+// plantShortDesc type encapsulates the short description of a plant: its
+// identifier and common name.
 type plantShortDesc struct {
 	Id         int
 	CommonName string
+}
+
+// jsonPlant describes a plant as a json object.
+// This is used by plantInfoHandler to send the plant information as json
+// encoded data.
+type jsonPlant struct {
+	Id           int    `json:"id"`
+	CommonName   string `json:"commonName"`
+	GenericName  string `json:"genericName"`
+	SpecificName string `json:"specificName"`
 }
 
 func main() {
@@ -84,6 +95,7 @@ AND (tablename = 'plant' OR tablename = 'plant_log')
 	e := env{dbpool}
 	http.HandleFunc("/plants/", e.plantsListHandler())
 	http.HandleFunc("/plants/new/", e.newPlantHandler())
+	http.HandleFunc("/plants/{id}/", e.plantInfoHandler())
 
 	// Start server
 	err = http.ListenAndServe(":8080", nil)
@@ -182,5 +194,46 @@ RETURNING id;`,
 		w.Header().Set("Content-Length", strconv.Itoa(len(strconv.Itoa(id))))
 
 		fmt.Fprintf(w, strconv.Itoa(id))
+	}
+}
+
+func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, notAllowed, http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Get the id of the plant to fetch from the url
+		id, err := strconv.Atoi(r.PathValue("id"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Query the db for the plant
+		row := e.conn.QueryRow(
+			context.Background(),
+			`SELECT * FROM plant WHERE id=$1;`,
+			id,
+		)
+		var comm, gen, spe string
+		err = row.Scan(&id, &comm, &gen, &spe)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Encode the plant as a json object
+		plant := jsonPlant{id, comm, gen, spe}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodGet {
+			enc := json.NewEncoder(w)
+			err = enc.Encode(plant)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
 	}
 }
