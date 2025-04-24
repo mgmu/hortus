@@ -54,7 +54,7 @@ If the request method is neither `HEAD` or `GET`, the server replies with a
 `405 Method Not Allowed` response. Otherwise it returns a list of plant's
 identifier and common name, separated by a comma, one per line.
 
-Example:
+##### Example:
 
 If the database contains the following plants:
 
@@ -104,6 +104,8 @@ message and the status code is set to `500 Internal Server Error`.
 If everything goes well, the response body contains the identifier of the newly
 inserted plant in its textual form and the status code is `200 OK`.
 
+##### Example:
+
 Test with `cURL` and a Hortus API server running on your local machine:
 
 `
@@ -123,7 +125,7 @@ error message and the status code is set to `500 Internal Server Error`.
 If everything goes well, the response body contains a JSON object with relevant
 plant data.
 
-Example:
+##### Example:
 
 Suppose the identifier 42 corresponds to an Aluminium plant, *Pilea cadierei*,
 stored in the database.
