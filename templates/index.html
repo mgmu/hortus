@@ -1,0 +1,18 @@
+<html>
+  <head>
+    <title>Hortus</title>
+  </head>
+  <body>
+    <h3>Plantes</h3>
+    {{ if . }}
+    <ul>
+      {{ range . }}
+      <li><a href={{ .Link }}>{{ .CommonName }}</a></li>
+      {{ end }}
+    </ul>
+    {{ else }}
+    <p>Pas de plantes pour le moment.</p>
+    {{ end }}
+    <a href="http://localhost:8081/plants/new/">Ajouter</a>
+  </body>
+</html>
