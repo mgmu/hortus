@@ -3,4 +3,6 @@
 
 # binaries
 hortus-api
-hortus-serv
+
+# utils
+hortus_db_url.txt
