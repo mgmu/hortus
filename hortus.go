@@ -2,14 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"html/template"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
+	"strconv"
 )
 
 var (
@@ -39,6 +38,13 @@ type jsonPlant struct {
 	CommonName   string `json:"commonName"`
 	GenericName  string `json:"genericName"`
 	SpecificName string `json:"specificName"`
+}
+
+// jsonPlantShortDesc type encapsulates the short description of a plant: its
+// identifier and common name.
+type jsonPlantShortDesc struct {
+	Id         int    `json:"id"`
+	CommonName string `json:"common-name"`
 }
 
 func main() {
@@ -79,19 +85,18 @@ func (e *env) indexHandler() func(http.ResponseWriter, *http.Request) {
 		}
 		defer resp.Body.Close()
 
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		plants, err := bytesToPlantLinks(body)
+		dec := json.NewDecoder(resp.Body)
+		var plants []jsonPlantShortDesc
+		err = dec.Decode(&plants)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
+		plantLinks := plantsShortDescToPlantLinks(plants)
+
 		// Send HTML document
-		err = e.t.ExecuteTemplate(w, "index.gohtml", plants)
+		err = e.t.ExecuteTemplate(w, "index.gohtml", plantLinks)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -189,22 +194,12 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-// converts a slice of bytes into a slice of plantLink structures
-func bytesToPlantLinks(b []byte) ([]plantLink, error) {
-	var bd strings.Builder
-	bd.Write(b) // Write always returns nil error
-	text := bd.String()
-	var plantLinks []plantLink
-	if text == "" {
-		return nil, nil
+// converts a slice of plant short descriptions to a slice of plant links
+func plantsShortDescToPlantLinks(psd []jsonPlantShortDesc) []plantLink {
+	plantLinks := make([]plantLink, len(psd))
+	for i, plant := range psd {
+		plantLinks[i].Link = hortusWeb + plantsListUrl + strconv.Itoa(plant.Id)
+		plantLinks[i].CommonName = plant.CommonName
 	}
-	for line := range strings.Lines(text) {
-		id, name, found := strings.Cut(line, ",")
-		if !found {
-			return nil, errors.New("Invalid list formatting")
-		}
-		link := hortusWeb + plantsListUrl + id
-		plantLinks = append(plantLinks, plantLink{link, name})
-	}
-	return plantLinks, nil
+	return plantLinks
 }
