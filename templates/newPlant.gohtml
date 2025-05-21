@@ -2,6 +2,7 @@
 <html>
   <head>
     <title>Nouvelle plante</title>
+    {{ template "meta-tags" }}
     <script>
       function validateForm() {
           let limit = 255;
@@ -25,6 +26,7 @@
     </script>
   </head>
   <body>
+    {{ template "nav-bar" }}
     <h1>Nouvelle plante</h1>
     <form
       name="newPlantForm"
