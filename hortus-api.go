@@ -34,11 +34,11 @@ type env struct {
 	conn *pgxpool.Pool
 }
 
-// plantShortDesc type encapsulates the short description of a plant: its
+// jsonPlantShortDesc type encapsulates the short description of a plant: its
 // identifier and common name.
-type plantShortDesc struct {
-	Id         int
-	CommonName string
+type jsonPlantShortDesc struct {
+	Id         int    `json:"id"`
+	CommonName string `json:"common-name"`
 }
 
 // jsonPlant describes a plant as a json object.
@@ -129,27 +129,21 @@ func (e *env) plantsListHandler() func(http.ResponseWriter, *http.Request) {
 		rows, _ := e.conn.Query(context.Background(), query)
 		plants, err := pgx.CollectRows(
 			rows,
-			pgx.RowToStructByPos[plantShortDesc],
+			pgx.RowToStructByPos[jsonPlantShortDesc],
 		)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		// Write response header and body
-		var body string
-		for i := 0; i < len(plants); i++ {
-			body += strconv.Itoa(plants[i].Id)
-			body += ","
-			body += plants[i].CommonName
-			body += "\n"
-		}
-
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-
-		if method == http.MethodGet {
-			fmt.Fprintf(w, body)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodGet {
+			enc := json.NewEncoder(w)
+			err = enc.Encode(plants)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 }
