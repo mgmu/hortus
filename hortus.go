@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -30,10 +31,21 @@ type env struct {
 	t *template.Template
 }
 
+// jsonPlant describes a plant as a json object.
+// This is used by plantInfoHandler to send the plant information as json
+// encoded data.
+type jsonPlant struct {
+	Id           int    `json:"id"`
+	CommonName   string `json:"commonName"`
+	GenericName  string `json:"genericName"`
+	SpecificName string `json:"specificName"`
+}
+
 func main() {
 	t, err := template.ParseFiles(
 		"templates/index.html",
 		"templates/newPlant.html",
+		"templates/plantInfo.html",
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, err.Error())
@@ -43,6 +55,7 @@ func main() {
 	e := env{t}
 	http.HandleFunc("/", e.indexHandler())
 	http.HandleFunc("/plants/new/", e.newPlantHandler())
+	http.HandleFunc("/plants/{id}", e.plantInfoHandler())
 
 	err = http.ListenAndServe(":8081", nil)
 	fmt.Fprintf(os.Stderr, "ListenAndServe: %v\n", err)
@@ -60,6 +73,7 @@ func (e *env) indexHandler() func(http.ResponseWriter, *http.Request) {
 		resp, err := http.Get(hortusApi + plantsListUrl)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		defer resp.Body.Close()
 
@@ -84,7 +98,7 @@ func (e *env) indexHandler() func(http.ResponseWriter, *http.Request) {
 }
 
 /* Returns a handler for the "/plants/new" URL.
- * The request method should be either GET or POST. If it is GET, returns the
+ * The request method should be either GET or POST. If it is GET, returns an
  * html page with a form to add a new plant. The submit button sends a POST
  * request to the same URL. If the request method is POST, parses the form and
  * sends a POST request to the API to add the new plant, redirecting to the
@@ -112,7 +126,7 @@ func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
 			data.Set("common-name", r.PostForm.Get("common-name"))
 			data.Set("generic-name", r.PostForm.Get("generic-name"))
 			data.Set("specific-name", r.PostForm.Get("specific-name"))
-			resp, err := http.PostForm(hortusApi + newPlantUrl, data)
+			resp, err := http.PostForm(hortusApi+newPlantUrl, data)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -129,9 +143,53 @@ func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
 			http.Redirect(
 				w,
 				r,
-				hortusWeb + plantsListUrl + id,
+				hortusWeb+plantsListUrl+id,
 				http.StatusSeeOther,
 			)
+		}
+	}
+}
+
+/* Returns a handler for the "/plants/{id}" URL.
+ * The request method should be GET. On success, returns an html document with
+ * relevant information on the plant requested. If the requested plant
+ * identifier is not a number, an error response is sent. This handler sends
+ * a GET request to the API to fetch the relevant plant information, if an error
+ * occurs, the handler sends back to the client an error response.
+ */
+func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// // Get the id of the plant to fetch from the url
+		// id, err := strconv.Atoi(r.PathValue("id"))
+		// if err != nil {
+		// 	http.Error(w, err.Error(), http.StatusBadRequest)
+		// 	return
+		// }
+
+		resp, err := http.Get(hortusApi + plantsListUrl + r.PathValue("id"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+
+		dec := json.NewDecoder(resp.Body)
+		var plantInfo jsonPlant
+		err = dec.Decode(&plantInfo)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		err = e.t.ExecuteTemplate(w, "plantInfo.html", plantInfo)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
 }

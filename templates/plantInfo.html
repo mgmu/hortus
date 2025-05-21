@@ -1,0 +1,23 @@
+<html>
+  <head>
+    <title>Informations de la plante</title>
+  </head>
+  <body>
+    <!-- General informations about the plant -->
+    <h1>Informations de la plante</h1>
+    <table>
+      <tr>
+        <th>Identifiant</th>
+        <th>Nom</th>
+        <th>Nom générique</th>
+        <th>Epithète spécifique</th>
+      </tr>
+      <tr>
+        <td>{{ .Id }}</td>
+        <td>{{ .CommonName }}</td>
+        <td>{{ .GenericName }}</td>
+        <td>{{ .SpecificName }}</td>
+      </tr>
+    </table>
+  </body>
+</html>
