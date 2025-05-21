@@ -3,27 +3,29 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 var (
-	noUrl                = "Database url is not set\n"
-	connPoolErr          = "Unable to create connection pool: %v\n"
-	queryRowErr          = "QueryRow failed: %v\n"
-	noTables             = "Tables don't exist\n"
-	searchPathErr        = "Could not change search path\n"
-	notAllowed           = "Method not allowed"
-	emptyName            = "Name is empty"
-	longName             = "Name is too long"
-	illegalName          = "Name contains an illegal character"
-	commonNameLimitLen   = 255
-	genericNameLimitLen  = 255
-	specificNameLimitLen = 255
+	noUrl         = "Database url is not set\n"
+	connPoolErr   = "Unable to create connection pool: %v\n"
+	queryRowErr   = "QueryRow failed: %v\n"
+	noTables      = "Tables don't exist\n"
+	searchPathErr = "Could not change search path\n"
+	notAllowed    = "Method not allowed"
+	emptyName     = "Name is empty"
+	longName      = "Name is too long"
+	illegalName   = "Name contains an illegal character"
+	nameMaxLen    = 255
 )
 
 // env type encapsulates the database connection pool, needed by the URL
@@ -172,6 +174,25 @@ func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
+		// Validate input
+		comm, err := sanitizeCommonName(r.PostForm.Get("common-name"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		gen, err := sanitizeScientificName(r.PostForm.Get("generic-name"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		spe, err := sanitizeScientificName(r.PostForm.Get("specific-name"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		// Insert new plant
 		row := e.conn.QueryRow(
 			context.Background(),
@@ -179,9 +200,9 @@ func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
 INSERT INTO plant (common_name, generic_name, specific_name)
 VALUES ($1, $2, $3)
 RETURNING id;`,
-			r.PostForm.Get("common-name"),
-			r.PostForm.Get("generic-name"),
-			r.PostForm.Get("specific-name"),
+			comm,
+			gen,
+			spe,
 		)
 		var id int
 		err = row.Scan(&id)
@@ -236,4 +257,44 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 			}
 		}
 	}
+}
+
+// Checks that name is not empty after trim, not longer than 255
+// characters and valid utf8. The string returned is the trimmed version of
+// common name.
+func sanitizeCommonName(name string) (string, error) {
+	s := strings.TrimSpace(name)
+	if len(s) == 0 {
+		return "", errors.New("Common name is empty")
+	}
+	if len(s) > nameMaxLen {
+		return "", errors.New("Common name length is greater than 255")
+	}
+	if !utf8.ValidString(s) {
+		return "", errors.New("Common name is not UTF-8")
+	}
+	return s, nil
+}
+
+// Checks that name is not longer than 255 characters after trim and is ascii.
+// The string returned is the trimmed version of name.
+func sanitizeScientificName(name string) (string, error) {
+	s := strings.TrimSpace(name)
+	if len(s) > nameMaxLen {
+		return "", errors.New("Scientific name length is greater than 255")
+	}
+	if !isAscii(s) {
+		return "", errors.New("Specific name is not ASCII")
+	}
+	return s, nil
+}
+
+// Returns true if s contains only ASCII characters.
+func isAscii(s string) bool {
+	for _, r := range s {
+		if r > unicode.MaxASCII {
+			return false
+		}
+	}
+	return true
 }
