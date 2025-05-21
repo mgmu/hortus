@@ -43,9 +43,11 @@ type jsonPlant struct {
 
 func main() {
 	t, err := template.ParseFiles(
-		"templates/index.html",
-		"templates/newPlant.html",
-		"templates/plantInfo.html",
+		"templates/meta-tags.gohtml",
+		"templates/nav-bar.gohtml",
+		"templates/index.gohtml",
+		"templates/newPlant.gohtml",
+		"templates/plantInfo.gohtml",
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, err.Error())
@@ -89,7 +91,7 @@ func (e *env) indexHandler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		// Send HTML document
-		err = e.t.ExecuteTemplate(w, "index.html", plants)
+		err = e.t.ExecuteTemplate(w, "index.gohtml", plants)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -112,7 +114,7 @@ func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		if r.Method == http.MethodGet {
-			err := e.t.ExecuteTemplate(w, "newPlant.html", nil)
+			err := e.t.ExecuteTemplate(w, "newPlant.gohtml", nil)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
@@ -164,13 +166,6 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		// // Get the id of the plant to fetch from the url
-		// id, err := strconv.Atoi(r.PathValue("id"))
-		// if err != nil {
-		// 	http.Error(w, err.Error(), http.StatusBadRequest)
-		// 	return
-		// }
-
 		resp, err := http.Get(hortusApi + plantsListUrl + r.PathValue("id"))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -186,7 +181,7 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		err = e.t.ExecuteTemplate(w, "plantInfo.html", plantInfo)
+		err = e.t.ExecuteTemplate(w, "plantInfo.gohtml", plantInfo)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

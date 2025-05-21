@@ -1,8 +1,11 @@
+<!DOCTYPE html>
 <html>
   <head>
-    <title>Informations de la plante</title>
+    <title>{{ .CommonName }}</title>
+    {{ template "meta-tags" }}
   </head>
   <body>
+    {{ template "nav-bar" }}
     <!-- General informations about the plant -->
     <h1>{{ .CommonName }}</h1>
     <h2>{{ .GenericName }} {{ .SpecificName }}</h2>

@@ -1,8 +1,11 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>Hortus</title>
+    {{ template "meta-tags" }}
   </head>
   <body>
+    {{ template "nav-bar" }}
     <h3>Plantes</h3>
     {{ if . }}
     <ul>
@@ -13,6 +16,6 @@
     {{ else }}
     <p>Pas de plantes pour le moment.</p>
     {{ end }}
-    <a href="http://localhost:8081/plants/new/">Ajouter</a>
+    <!-- <a href="http://localhost:8081/plants/new/">Ajouter</a> -->
   </body>
 </html>
