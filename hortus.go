@@ -12,10 +12,12 @@ import (
 )
 
 var (
-	hortusApi     = "http://localhost:8080"
-	hortusWeb     = "http://localhost:8081"
+	protocol      = "http"
+	webPort       = "8081"
+	apiPort       = "8080"
 	plantsListUrl = "/plants/"
 	newPlantUrl   = plantsListUrl + "new/"
+	notAllowed    = "Method not allowed"
 )
 
 // Encapsulate the common name of a plant and a link to the web page displaying
@@ -25,9 +27,11 @@ type plantLink struct {
 	CommonName string
 }
 
-// Encapsulates the template object for URL handlers
+// Encapsulates environment data for URL handlers
 type env struct {
-	t *template.Template
+	t         *template.Template
+	hortusWeb string // URL for hortus web site
+	hortusApi string // URL for hortus api
 }
 
 // jsonPlant describes a plant as a json object.
@@ -48,6 +52,18 @@ type jsonPlantShortDesc struct {
 }
 
 func main() {
+	hortusWebIp := os.Getenv("HORTUS_WEB_IP")
+	if hortusWebIp == "" {
+		fmt.Fprintf(os.Stderr, "No IP provided for Hortus web\n")
+		os.Exit(1)
+	}
+
+	hortusApiIp := os.Getenv("HORTUS_API_IP")
+	if hortusApiIp == "" {
+		fmt.Fprintf(os.Stderr, "No IP provided for Hortus API\n")
+		os.Exit(1)
+	}
+
 	t, err := template.ParseFiles(
 		"templates/meta-tags.gohtml",
 		"templates/nav-bar.gohtml",
@@ -60,7 +76,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	e := env{t}
+	e := env{
+		t,
+		protocol + "://" + hortusWebIp + ":" + webPort,
+		protocol + "://" + hortusApiIp + ":" + apiPort,
+	}
 	http.HandleFunc("/", e.indexHandler())
 	http.HandleFunc("/plants/new/", e.newPlantHandler())
 	http.HandleFunc("/plants/{id}", e.plantInfoHandler())
@@ -78,7 +98,7 @@ func main() {
 func (e *env) indexHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Fetch plants
-		resp, err := http.Get(hortusApi + plantsListUrl)
+		resp, err := http.Get(e.hortusApi + plantsListUrl)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -93,7 +113,7 @@ func (e *env) indexHandler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		plantLinks := plantsShortDescToPlantLinks(plants)
+		plantLinks := plantsShortDescToPlantLinks(plants, e.hortusWeb)
 
 		// Send HTML document
 		err = e.t.ExecuteTemplate(w, "index.gohtml", plantLinks)
@@ -114,7 +134,7 @@ func (e *env) indexHandler() func(http.ResponseWriter, *http.Request) {
 func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodPost {
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			http.Error(w, notAllowed, http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -133,7 +153,7 @@ func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
 			data.Set("common-name", r.PostForm.Get("common-name"))
 			data.Set("generic-name", r.PostForm.Get("generic-name"))
 			data.Set("specific-name", r.PostForm.Get("specific-name"))
-			resp, err := http.PostForm(hortusApi+newPlantUrl, data)
+			resp, err := http.PostForm(e.hortusApi+newPlantUrl, data)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -150,7 +170,7 @@ func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
 			http.Redirect(
 				w,
 				r,
-				hortusWeb+plantsListUrl+id,
+				e.hortusWeb+plantsListUrl+id,
 				http.StatusSeeOther,
 			)
 		}
@@ -167,11 +187,11 @@ func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
 func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			http.Error(w, notAllowed, http.StatusMethodNotAllowed)
 			return
 		}
 
-		resp, err := http.Get(hortusApi + plantsListUrl + r.PathValue("id"))
+		resp, err := http.Get(e.hortusApi + plantsListUrl + r.PathValue("id"))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -195,10 +215,14 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 }
 
 // converts a slice of plant short descriptions to a slice of plant links
-func plantsShortDescToPlantLinks(psd []jsonPlantShortDesc) []plantLink {
+func plantsShortDescToPlantLinks(
+	psd []jsonPlantShortDesc,
+	link string,
+) []plantLink {
 	plantLinks := make([]plantLink, len(psd))
 	for i, plant := range psd {
-		plantLinks[i].Link = hortusWeb + plantsListUrl + strconv.Itoa(plant.Id)
+		plantLinks[i].Link =
+			link + plantsListUrl + strconv.Itoa(plant.Id)
 		plantLinks[i].CommonName = plant.CommonName
 	}
 	return plantLinks
