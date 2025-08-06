@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Nouvelle entrée</title>
+    {{ template "meta-tags" }}
+    <script>
+      function validateForm() {
+          let limit = 255;
+          let new_entry = document.forms["newLogEntry"]["new-entry"].value;
+          if (new_entry == "") {
+              alert("L'entrée ne peut pas être vide.")
+              return false;
+          }
+      }
+    </script>
+
+  </head>
+  <body>
+    {{ template "nav-bar" }}
+
+    <form
+      name="newLogEntry"
+      action="/plants/log/{{ . }}/"
+      onsubmit="return validateForm()"
+      method="post">
+      <label for="new-entry">Nouvelle entrée:</label>
+      <input type="text" id="new-entry" name="new-entry">
+      <br>
+      <input type="submit" value="Envoyer">
+    </form>
+  </body>
+</html>

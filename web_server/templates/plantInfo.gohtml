@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>{{ .CommonName }}</title>
+    {{ template "meta-tags" }}
+    <script>
+      function validateForm() {
+          let limit = 255;
+          let new_entry = document.forms["newLogEntry"]["new_entry"].value;
+          if (new_entry == "") {
+              alert("L'entrée ne peut pas être vide.")
+              return false;
+          }
+      }
+    </script>
+
+  </head>
+  <body>
+    {{ template "nav-bar" }}
+    <!-- General informations about the plant -->
+    <h1>{{ .CommonName }}</h1>
+    <h2>{{ .GenericName }} {{ .SpecificName }}</h2>
+    <p>Identifiant : {{ .Id }} </p>
+
+    <p>Cliquer <a href="/plants/log/{{ .Id }}/">ici</a> pour ajouter une entrée</p>
+
+    <ul>
+      {{ range .Logs }}
+      <li>{{ .Desc }}</li>
+      {{ end }}
+    </ul>
+  </body>
+</html>
