@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Nouvelle plante</title>
+    {{ template "meta-tags" }}
+    <script>
+      function validateForm() {
+          let limit = 255;
+          let common_name = document.forms["newPlantForm"]["common-name"].value;
+          let gen_name = document.forms["newPlantForm"]["generic-name"].value;
+          let spe_name = document.forms["newPlantForm"]["specific-name"].value;
+          if (common_name == "") {
+              alert("Le nom de la plante ne doit pas être vide.")
+              return false;
+          } else if (common_name.length > limit) {
+              alert("Le nom ne doit pas excéder 255 caractères.")
+              return false;
+          } else if (gen_name.length > limit) {
+              alert("Le nom générique ne doit pas excéder 255 caractères.")
+              return false;
+          } else if (spe_name.length > limit) {
+              alert("Le nom spécifique ne doit pas excéder 255 caractères.")
+              return false;
+          }
+      }
+    </script>
+  </head>
+  <body>
+    {{ template "nav-bar" }}
+    <h1>Nouvelle plante</h1>
+    <form
+      name="newPlantForm"
+      action="/plants/new/"
+      onsubmit="return validateForm()"
+      method="post">
+      <label for="common-name">Nom commun:</label>
+      <input type="text" id="common-name" name="common-name">
+      <br>
+      <label for="generic-name">Espèce:</label>
+      <input type="text" id="generic-name" name="generic-name">
+      <br>
+      <label for="specific-name">Variété:</label>
+      <input type="text" id="specific-name" name="specific-name">
+      <br>
+      <input type="submit" value="Submit">
+    </form>
+  </body>
+</html>

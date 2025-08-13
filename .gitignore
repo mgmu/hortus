@@ -2,7 +2,14 @@
 *~
 
 # binaries
-hortus-api
+api/hortus-api
+web_server/hortus
 
 # utils
-hortus_db_url.txt
+api/hortus_db_url.txt
+web_server/env.txt
+
+# docs
+api/doc.md
+api/doc.html
+api/README.html
