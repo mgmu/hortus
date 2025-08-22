@@ -5,11 +5,6 @@
 api/hortus-api
 web_server/hortus
 
-# utils
-api/hortus_db_url.txt
-web_server/env.txt
-
 # docs
-api/doc.md
-api/doc.html
-api/README.html
+api/docs/
+web_server/docs/
