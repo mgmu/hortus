@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/mgmu/hortus/internal/messages"
 	"context"
 	"encoding/json"
 	"errors"
@@ -32,32 +33,6 @@ var (
 // handlers of the API.
 type env struct {
 	conn *pgxpool.Pool
-}
-
-// jsonPlantShortDesc type encapsulates the short description of a plant: its
-// identifier and common name.
-type jsonPlantShortDesc struct {
-	Id         int    `json:"id"`
-	CommonName string `json:"common_name"`
-}
-
-// jsonPlant describes a plant as a json object.
-// This is used by plantInfoHandler to send the plant information as json
-// encoded data.
-type jsonPlant struct {
-	Id           int            `json:"id"`
-	CommonName   string         `json:"common_name"`
-	GenericName  string         `json:"generic_name"`
-	SpecificName string         `json:"specific_name"`
-	Logs         []jsonPlantLog `json:"logs"`
-}
-
-// jsonPlantLog describes a plant log as a json object.
-type jsonPlantLog struct {
-	Id        int    `json:"id"`
-	PlantId   int    `json:"plant_id"`
-	Desc      string `json:"desc"`
-	EventType int    `json:"event_type"`
 }
 
 func main() {
@@ -139,7 +114,7 @@ func (e *env) plantsListHandler() func(http.ResponseWriter, *http.Request) {
 		rows, _ := e.conn.Query(context.Background(), query)
 		plants, err := pgx.CollectRows(
 			rows,
-			pgx.RowToStructByPos[jsonPlantShortDesc],
+			pgx.RowToStructByPos[messages.JsonPlantShortDesc],
 		)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -262,7 +237,7 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 		)
 		plantLogs, err := pgx.CollectRows(
 			rows,
-			pgx.RowToStructByPos[jsonPlantLog],
+			pgx.RowToStructByPos[messages.JsonPlantLog],
 		)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -270,7 +245,7 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		// Encode the plant as a json object
-		plant := jsonPlant{id, comm, gen, spe, plantLogs}
+		plant := messages.JsonPlant{id, comm, gen, spe, plantLogs}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		if r.Method == http.MethodGet {
 			err = json.NewEncoder(w).Encode(plant)

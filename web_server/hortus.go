@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/mgmu/hortus/internal/messages"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -20,7 +21,7 @@ var (
 	notAllowed    = "Method not allowed"
 )
 
-// Encapsulate the common name of a plant and a link to the web page displaying
+// Encapsulates the common name of a plant and a link to the web page displaying
 // more detailed information.
 type plantLink struct {
 	Link       string
@@ -32,32 +33,6 @@ type env struct {
 	t         *template.Template
 	hortusWeb string // URL for hortus web site
 	hortusApi string // URL for hortus api
-}
-
-// jsonPlant describes a plant as a json object.
-// This is used by plantInfoHandler to send the plant information as json
-// encoded data.
-type jsonPlant struct {
-	Id           int            `json:"id"`
-	CommonName   string         `json:"common_name"`
-	GenericName  string         `json:"generic_name"`
-	SpecificName string         `json:"specific_name"`
-	Logs         []jsonPlantLog `json:"logs"`
-}
-
-// jsonPlantLog describes a plant log as a json object.
-type jsonPlantLog struct {
-	Id        int    `json:"id"`
-	PlantId   int    `json:"plant_id"`
-	Desc      string `json:"desc"`
-	EventType int    `json:"event_type"`
-}
-
-// jsonPlantShortDesc type encapsulates the short description of a plant: its
-// identifier and common name.
-type jsonPlantShortDesc struct {
-	Id         int    `json:"id"`
-	CommonName string `json:"common_name"`
 }
 
 func main() {
@@ -117,7 +92,7 @@ func (e *env) indexHandler() func(http.ResponseWriter, *http.Request) {
 		defer resp.Body.Close()
 
 		dec := json.NewDecoder(resp.Body)
-		var plants []jsonPlantShortDesc
+		var plants []messages.JsonPlantShortDesc
 		err = dec.Decode(&plants)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -213,7 +188,7 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 		defer resp.Body.Close()
 
 		dec := json.NewDecoder(resp.Body)
-		var plantInfo jsonPlant
+		var plantInfo messages.JsonPlant
 		err = dec.Decode(&plantInfo)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -276,7 +251,7 @@ func (e *env) newPlantLogHandler() func(http.ResponseWriter, *http.Request) {
 
 // converts a slice of plant short descriptions to a slice of plant links
 func plantsShortDescToPlantLinks(
-	psd []jsonPlantShortDesc,
+	psd []messages.JsonPlantShortDesc,
 	link string,
 ) []plantLink {
 	plantLinks := make([]plantLink, len(psd))
