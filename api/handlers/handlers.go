@@ -1,15 +1,14 @@
-package main
+package handlers
 
 import (
-	"github.com/mgmu/hortus/internal/messages"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mgmu/hortus/internal/messages"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"unicode"
@@ -17,78 +16,9 @@ import (
 )
 
 var (
-	noUrl         = "Database url is not set\n"
-	connPoolErr   = "Unable to create connection pool: %v\n"
-	queryRowErr   = "QueryRow failed: %v\n"
-	noTables      = "Tables don't exist\n"
-	searchPathErr = "Could not change search path\n"
-	notAllowed    = "Method not allowed"
-	emptyName     = "Name is empty"
-	longName      = "Name is too long"
-	illegalName   = "Name contains an illegal character"
-	nameMaxLen    = 255
+	notAllowed = "Method not allowed"
+	nameMaxLen = 255
 )
-
-// env type encapsulates the database connection pool, needed by the URL
-// handlers of the API.
-type env struct {
-	conn *pgxpool.Pool
-}
-
-func main() {
-	// Connection to database
-	dburl := os.Getenv("HORTUS_DB_URL")
-	if dburl == "" {
-		fmt.Fprintf(os.Stderr, noUrl)
-		os.Exit(1)
-	}
-
-	dbpool, err := pgxpool.New(context.Background(), dburl)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, connPoolErr, err)
-		os.Exit(1)
-	}
-	defer dbpool.Close()
-
-	// Check existence of tables
-	query := `SELECT EXISTS (
-SELECT FROM pg_tables
-WHERE schemaname = 'hortus_schema'
-AND (tablename = 'plant' OR tablename = 'plant_log')
-);`
-
-	var exist bool
-	err = dbpool.QueryRow(context.Background(), query).Scan(&exist)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, queryRowErr, err)
-		os.Exit(1)
-	}
-
-	if !exist {
-		fmt.Fprintf(os.Stderr, noTables)
-		os.Exit(1)
-	}
-
-	// Change schema (it should exist at this point)
-	query = `SET search_path TO hortus_schema;`
-	_, err = dbpool.Exec(context.Background(), query)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
-		os.Exit(1)
-	}
-
-	// Add API handlers
-	e := env{dbpool}
-	http.HandleFunc("/plants/", e.plantsListHandler())
-	http.HandleFunc("/plants/new/", e.newPlantHandler())
-	http.HandleFunc("/plants/{id}/", e.plantInfoHandler())
-	http.HandleFunc("/plants/log/{id}/", e.newPlantLogHandler())
-
-	// Start server
-	err = http.ListenAndServe(":8080", nil)
-	fmt.Fprintf(os.Stderr, "ListenAndServe: %v\n", err)
-	os.Exit(1)
-}
 
 /* Returns a handler for the "/plants/" URL.
  * The request method should be either HEAD or GET. If the request method is
@@ -101,7 +31,7 @@ AND (tablename = 'plant' OR tablename = 'plant_log')
  * communicating with the database, sends an "Internal Server Error" with the
  * appropriate status code and error message.
  */
-func (e *env) plantsListHandler() func(http.ResponseWriter, *http.Request) {
+func PlantsListHandler(conn *pgxpool.Pool) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		method := r.Method
 		if method != http.MethodHead && method != http.MethodGet {
@@ -111,7 +41,7 @@ func (e *env) plantsListHandler() func(http.ResponseWriter, *http.Request) {
 
 		// Query the db for identifiers and plant names
 		query := "SELECT id, common_name FROM plant;"
-		rows, _ := e.conn.Query(context.Background(), query)
+		rows, _ := conn.Query(context.Background(), query)
 		plants, err := pgx.CollectRows(
 			rows,
 			pgx.RowToStructByPos[messages.JsonPlantShortDesc],
@@ -133,7 +63,6 @@ func (e *env) plantsListHandler() func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-
 /* Returns a handler for the "/plants/new" URL.
  * The request method should be POST. If it is not, sets the status code to
  * http.StatusMethodNotAllowed and sends an error response. If an error is
@@ -141,7 +70,7 @@ func (e *env) plantsListHandler() func(http.ResponseWriter, *http.Request) {
  * "Bad Request" error back. Otherwise, the new plant is inserted and its
  * identifier is sent back in the body in its textual form.
  */
-func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
+func NewPlantHandler(conn *pgxpool.Pool) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, notAllowed, http.StatusMethodNotAllowed)
@@ -173,7 +102,7 @@ func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		// Insert new plant
-		row := e.conn.QueryRow(
+		row := conn.QueryRow(
 			context.Background(),
 			`
 INSERT INTO plant (common_name, generic_name, specific_name)
@@ -202,7 +131,7 @@ RETURNING id;`,
  * to http.StatusMethodNotAllowed and sends an error response. Queries the
  * database for plant information and sends it back as json encoded data.
  */
-func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
+func PlantInfoHandler(conn *pgxpool.Pool) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			http.Error(w, notAllowed, http.StatusMethodNotAllowed)
@@ -217,7 +146,7 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		// Query the db for the plant
-		row := e.conn.QueryRow(
+		row := conn.QueryRow(
 			context.Background(),
 			`SELECT * FROM plant WHERE id=$1;`,
 			id,
@@ -230,7 +159,7 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		// Query the db for the plant's logs
-		rows, _ := e.conn.Query(
+		rows, _ := conn.Query(
 			context.Background(),
 			`SELECT * FROM plant_log WHERE plant_id=$1;`,
 			id,
@@ -257,7 +186,7 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func (e *env) newPlantLogHandler() func(http.ResponseWriter, *http.Request) {
+func NewPlantLogHandler(conn *pgxpool.Pool) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, notAllowed, http.StatusMethodNotAllowed)
@@ -277,7 +206,7 @@ func (e *env) newPlantLogHandler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		// Insert new log entry
-		row := e.conn.QueryRow(
+		row := conn.QueryRow(
 			context.Background(),
 			`
 INSERT INTO plant_log (plant_id, description, event_type)
