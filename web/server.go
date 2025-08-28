@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/mgmu/hortus/internal/messages"
+	"github.com/mgmu/hortus/internal/plants"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -92,7 +92,7 @@ func (e *env) indexHandler() func(http.ResponseWriter, *http.Request) {
 		defer resp.Body.Close()
 
 		dec := json.NewDecoder(resp.Body)
-		var plants []messages.JsonPlantShortDesc
+		var plants []plants.PlantShortDesc
 		err = dec.Decode(&plants)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -188,7 +188,7 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 		defer resp.Body.Close()
 
 		dec := json.NewDecoder(resp.Body)
-		var plantInfo messages.JsonPlant
+		var plantInfo plants.Plant
 		err = dec.Decode(&plantInfo)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -251,7 +251,7 @@ func (e *env) newPlantLogHandler() func(http.ResponseWriter, *http.Request) {
 
 // converts a slice of plant short descriptions to a slice of plant links
 func plantsShortDescToPlantLinks(
-	psd []messages.JsonPlantShortDesc,
+	psd []plants.PlantShortDesc,
 	link string,
 ) []plantLink {
 	plantLinks := make([]plantLink, len(psd))
