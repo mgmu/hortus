@@ -34,10 +34,10 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	http.HandleFunc(env.IndexRoute, env.IndexHandler())
-	http.HandleFunc(env.NewPlantRoute, env.NewPlantHandler())
-	http.HandleFunc(env.PlantInfoRoute, env.PlantInfoHandler())
-	http.HandleFunc(env.NewPlantLogRoute, env.NewPlantLogHandler())
+	http.HandleFunc(handlers.IndexRoute, env.IndexHandler())
+	http.HandleFunc(handlers.NewPlantRoute, env.NewPlantHandler())
+	http.HandleFunc(handlers.PlantInfoRoute, env.PlantInfoHandler())
+	http.HandleFunc(handlers.NewPlantLogRoute, env.NewPlantLogHandler())
 
 	err = http.ListenAndServe(":8081", nil)
 	fmt.Fprintf(os.Stderr, "ListenAndServe: %v\n", err)
