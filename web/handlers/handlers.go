@@ -82,27 +82,30 @@ type plantIdWithNavBar struct {
 // with the plants list.
 func (e *HandlerEnv) IndexHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		resp, err := http.Get(e.apiUrl + plantsListUrl)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer resp.Body.Close()
+		switch r.Method {
+		case http.MethodGet:
+			resp, err := http.Get(e.apiUrl + plantsListUrl)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer resp.Body.Close()
 
-		dec := json.NewDecoder(resp.Body)
-		var plants []plants.PlantShortDesc
-		err = dec.Decode(&plants)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		links := plantsShortDescToPlantLinks(plants, e.webUrl)
-		linksWithNav := plantLinksWithNavBar{links, e.navBar}
-		err = e.templates.ExecuteTemplate(w, "index.gohtml", linksWithNav)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			dec := json.NewDecoder(resp.Body)
+			var plants []plants.PlantShortDesc
+			err = dec.Decode(&plants)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			links := plantsShortDescToPlantLinks(plants, e.webUrl)
+			linksWithNav := plantLinksWithNavBar{links, e.navBar}
+			err = e.templates.ExecuteTemplate(w, "index.gohtml", linksWithNav)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		default:
+			http.Error(w, notAllowed, http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -115,17 +118,13 @@ func (e *HandlerEnv) IndexHandler() func(http.ResponseWriter, *http.Request) {
 // plant's information page.
 func (e *HandlerEnv) NewPlantHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodPost {
-			http.Error(w, notAllowed, http.StatusMethodNotAllowed)
-			return
-		}
-
-		if r.Method == http.MethodGet {
+		switch r.Method {
+		case http.MethodGet:
 			err := e.templates.ExecuteTemplate(w, "newPlant.gohtml", e.navBar)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
-		} else {
+		case http.MethodPost:
 			err := r.ParseForm()
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -157,6 +156,8 @@ func (e *HandlerEnv) NewPlantHandler() func(http.ResponseWriter, *http.Request) 
 				url,
 				http.StatusSeeOther,
 			)
+		default:
+			http.Error(w, notAllowed, http.StatusMethodNotAllowed)			
 		}
 	}
 }

@@ -18,21 +18,16 @@ var (
 	nameMaxLen = 255
 )
 
-/* Returns a handler for the "/plants/" URL.
- * The request method should be either HEAD or GET. If the request method is
- * HEAD, sets the content length and returns 200 status code. If the request
- * method is GET, sets the content length, returns 200 status code and the body
- * of the response contains a list of plant name/identifier couples, separated
- * by a comma, one couple per line and each line ends with a new line character.
- * If the request method is not either HEAD or GET, sends a "Method not allowed"
- * error with the appropriate status code. If an error occurs while
- * communicating with the database, sends an "Internal Server Error" with the
- * appropriate status code and error message.
- */
+// Returns a handler for the "/plants/" URL.
+// The request method should be GET. If the request method is GET, sets the
+// content length, returns 200 status code and the body of the response contains
+// list of plant name/identifier couples, separated by a comma, one couple per
+// line and each line ends with a new line character. If an error occurs while
+// communicating with the database, sends an "Internal Server Error" with the
+// appropriate status code and error message.
 func PlantsListHandler(db database.Database) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		method := r.Method
-		if method != http.MethodHead && method != http.MethodGet {
+		if r.Method != http.MethodGet {
 			http.Error(w, notAllowed, http.StatusMethodNotAllowed)
 			return
 		}
@@ -43,25 +38,21 @@ func PlantsListHandler(db database.Database) func(http.ResponseWriter, *http.Req
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if r.Method == http.MethodGet {
-			enc := json.NewEncoder(w)
-			err = enc.Encode(plants)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+		enc := json.NewEncoder(w)
+		err = enc.Encode(plants)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
 }
 
-/* Returns a handler for the "/plants/new" URL.
- * The request method should be POST. If it is not, sets the status code to
- * http.StatusMethodNotAllowed and sends an error response. If an error is
- * encountered when calling ParseForm or inserting the new plant , sends a
- * "Bad Request" error back. Otherwise, the new plant is inserted and its
- * identifier is sent back in the body in its textual form.
- */
+// Returns a handler for the "/plants/new" URL.
+// The request method should be POST. If it is not, sets the status code to
+// http.StatusMethodNotAllowed and sends an error response. If an error is
+// encountered when calling ParseForm or inserting the new plant , sends a
+// "Bad Request" error back. Otherwise, the new plant is inserted and its
+// identifier is sent back in the body in its textual form.
 func NewPlantHandler(db database.Database) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -105,14 +96,13 @@ func NewPlantHandler(db database.Database) func(http.ResponseWriter, *http.Reque
 	}
 }
 
-/* Returns a handler for the "/plants/{id}" URL.
- * The request method should be GET or HEAD. If it is not, sets the status code
- * to http.StatusMethodNotAllowed and sends an error response. Queries the
- * database for plant information and sends it back as json encoded data.
- */
+// Returns a handler for the "/plants/{id}" URL.
+// The request method should be GET. If it is not, sets the status code to
+// http.StatusMethodNotAllowed and sends an error response. Queries the database
+// for plant information and sends it back as json encoded data.
 func PlantInfoHandler(db database.Database) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		if r.Method != http.MethodGet {
 			http.Error(w, notAllowed, http.StatusMethodNotAllowed)
 			return
 		}
@@ -138,13 +128,10 @@ func PlantInfoHandler(db database.Database) func(http.ResponseWriter, *http.Requ
 
 		// Encode the plant as a json object
 		plant := plants.Plant{id, comm, gen, spe, plantLogs}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if r.Method == http.MethodGet {
-			err = json.NewEncoder(w).Encode(plant)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+		err = json.NewEncoder(w).Encode(plant)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
 }
