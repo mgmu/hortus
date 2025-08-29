@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>{{ .CommonName }}</title>
+    <title>{{ .Plant.CommonName }}</title>
     {{ template "meta-tags" }}
     <script>
       function validateForm() {
@@ -16,16 +16,19 @@
 
   </head>
   <body>
-    {{ template "nav-bar" }}
+    <pre>
+      {{ printf "%#v" . }}
+    </pre>
+    {{ template "nav-bar" .NavBarLinks }}
     <!-- General informations about the plant -->
-    <h1>{{ .CommonName }}</h1>
-    <h2>{{ .GenericName }} {{ .SpecificName }}</h2>
-    <p>Identifiant : {{ .Id }} </p>
+    <h1>{{ .Plant.CommonName }}</h1>
+    <h2>{{ .Plant.GenericName }} {{ .Plant.SpecificName }}</h2>
+    <p>Identifiant : {{ .Plant.Id }} </p>
 
-    <p>Cliquer <a href="/plants/log/{{ .Id }}/">ici</a> pour ajouter une entrée</p>
+    <p>Cliquer <a href="/plants/log/{{ .Plant.Id }}/">ici</a> pour ajouter une entrée</p>
 
     <ul>
-      {{ range .Logs }}
+      {{ range .Plant.Logs }}
       <li>{{ .Desc }}</li>
       {{ end }}
     </ul>

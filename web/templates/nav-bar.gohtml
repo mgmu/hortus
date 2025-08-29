@@ -1,6 +1,6 @@
 {{ define "nav-bar" }}
 <div class="nav-bar">
-     <a href="http://172.20.10.4:8081/plants/">Plantes</a>
-     <a href="http://172.20.10.4:8081/plants/new/">Ajouter</a>
+     <a href={{ .Home }}>Plantes</a>
+     <a href={{ .AddPlant }}>Ajouter</a>
 </div>
 {{ end }}

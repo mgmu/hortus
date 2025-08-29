@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/mgmu/hortus/internal/plants"
 	"encoding/json"
 	"fmt"
+	"github.com/mgmu/hortus/internal/plants"
 	"html/template"
 	"io"
 	"net/http"
@@ -21,6 +21,12 @@ var (
 	notAllowed    = "Method not allowed"
 )
 
+// Encapsulates the nav bar links
+type navBarLinks struct {
+	Home     string
+	AddPlant string
+}
+
 // Encapsulates the common name of a plant and a link to the web page displaying
 // more detailed information.
 type plantLink struct {
@@ -28,11 +34,27 @@ type plantLink struct {
 	CommonName string
 }
 
+type plantLinksWithNavBar struct {
+	PlantLinks []plantLink
+	NavBarLinks navBarLinks
+}
+
+type plantInfoWithNavBar struct {
+	Plant plants.Plant
+	NavBarLinks navBarLinks
+}
+
+type plantIdWithNavBar struct {
+	Id int
+	NavBarLinks navBarLinks
+}
+
 // Encapsulates environment data for URL handlers
 type env struct {
 	t         *template.Template
 	hortusWeb string // URL for hortus web site
 	hortusApi string // URL for hortus api
+	navBarLinks navBarLinks
 }
 
 func main() {
@@ -61,11 +83,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	hortusWeb := protocol + "://" + hortusWebIp + ":" + webPort
+	hortusApi := protocol + "://" + hortusApiIp + ":" + apiPort
 	e := env{
 		t,
-		protocol + "://" + hortusWebIp + ":" + webPort,
-		protocol + "://" + hortusApiIp + ":" + apiPort,
+		hortusWeb,
+		hortusApi,
+		navBarLinks{hortusWeb + "/", hortusWeb + "/plants/new/"},
 	}
+	
 	http.HandleFunc("/", e.indexHandler())
 	http.HandleFunc("/plants/new/", e.newPlantHandler())
 	http.HandleFunc("/plants/{id}/", e.plantInfoHandler())
@@ -102,7 +128,7 @@ func (e *env) indexHandler() func(http.ResponseWriter, *http.Request) {
 		plantLinks := plantsShortDescToPlantLinks(plants, e.hortusWeb)
 
 		// Send HTML document
-		err = e.t.ExecuteTemplate(w, "index.gohtml", plantLinks)
+		err = e.t.ExecuteTemplate(w, "index.gohtml", plantLinksWithNavBar{plantLinks, e.navBarLinks})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -125,7 +151,7 @@ func (e *env) newPlantHandler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		if r.Method == http.MethodGet {
-			err := e.t.ExecuteTemplate(w, "newPlant.gohtml", nil)
+			err := e.t.ExecuteTemplate(w, "newPlant.gohtml", e.navBarLinks)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
@@ -195,7 +221,7 @@ func (e *env) plantInfoHandler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		err = e.t.ExecuteTemplate(w, "plantInfo.gohtml", plantInfo)
+		err = e.t.ExecuteTemplate(w, "plantInfo.gohtml", plantInfoWithNavBar{plantInfo, e.navBarLinks})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -214,7 +240,7 @@ func (e *env) newPlantLogHandler() func(http.ResponseWriter, *http.Request) {
 		}
 		switch r.Method {
 		case http.MethodGet:
-			err = e.t.ExecuteTemplate(w, "newPlantLog.gohtml", id)
+			err = e.t.ExecuteTemplate(w, "newPlantLog.gohtml", plantIdWithNavBar{id, e.navBarLinks})
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
