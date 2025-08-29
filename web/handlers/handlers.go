@@ -56,16 +56,21 @@ type plantLink struct {
 	CommonName string
 }
 
+// Encapsulates plant links and the nav bar. Used by index page template.
 type plantLinksWithNavBar struct {
 	PlantLinks []plantLink
 	NavBar     navBarLinks
 }
 
+// Encapsulates a plant and the nav bar. Used by plant information page
+// template.
 type plantInfoWithNavBar struct {
 	Plant  plants.Plant
 	NavBar navBarLinks
 }
 
+// Encaplusates a plant identifier and the nav bar. Used by new plant log page
+// template.
 type plantIdWithNavBar struct {
 	Id     int
 	NavBar navBarLinks
@@ -77,7 +82,6 @@ type plantIdWithNavBar struct {
 // with the plants list.
 func (e *HandlerEnv) IndexHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Fetch plants
 		resp, err := http.Get(e.apiUrl + plantsListUrl)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -95,8 +99,6 @@ func (e *HandlerEnv) IndexHandler() func(http.ResponseWriter, *http.Request) {
 
 		links := plantsShortDescToPlantLinks(plants, e.webUrl)
 		linksWithNav := plantLinksWithNavBar{links, e.navBar}
-
-		// Send HTML document
 		err = e.templates.ExecuteTemplate(w, "index.gohtml", linksWithNav)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -123,7 +125,7 @@ func (e *HandlerEnv) NewPlantHandler() func(http.ResponseWriter, *http.Request) 
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
-		} else { // POST
+		} else {
 			err := r.ParseForm()
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -188,7 +190,8 @@ func (e *HandlerEnv) PlantInfoHandler() func(http.ResponseWriter, *http.Request)
 			return
 		}
 
-		err = e.templates.ExecuteTemplate(w, "plantInfo.gohtml", plantInfoWithNavBar{plantInfo, e.navBar})
+		data := plantInfoWithNavBar{plantInfo, e.navBar}
+		err = e.templates.ExecuteTemplate(w, "plantInfo.gohtml", data)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -206,7 +209,8 @@ func (e *HandlerEnv) NewPlantLogHandler() func(http.ResponseWriter, *http.Reques
 		}
 		switch r.Method {
 		case http.MethodGet:
-			err = e.templates.ExecuteTemplate(w, "newPlantLog.gohtml", plantIdWithNavBar{id, e.navBar})
+			data := plantIdWithNavBar{id, e.navBar}
+			err = e.templates.ExecuteTemplate(w, "newPlantLog.gohtml", data)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
