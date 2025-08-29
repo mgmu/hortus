@@ -16,11 +16,11 @@
 
   </head>
   <body>
-    {{ template "nav-bar" }}
+    {{ template "nav-bar" .NavBarLinks }}
 
     <form
       name="newLogEntry"
-      action="/plants/log/{{ . }}/"
+      action="/plants/log/{{ .Id }}/"
       onsubmit="return validateForm()"
       method="post">
       <label for="new-entry">Nouvelle entrée:</label>
