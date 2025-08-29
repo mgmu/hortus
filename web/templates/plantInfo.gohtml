@@ -16,10 +16,7 @@
 
   </head>
   <body>
-    <pre>
-      {{ printf "%#v" . }}
-    </pre>
-    {{ template "nav-bar" .NavBarLinks }}
+    {{ template "nav-bar" .NavBar }}
     <!-- General informations about the plant -->
     <h1>{{ .Plant.CommonName }}</h1>
     <h2>{{ .Plant.GenericName }} {{ .Plant.SpecificName }}</h2>
